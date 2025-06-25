@@ -15,7 +15,7 @@ Telegram бот для отслеживания цен товаров на Ян�
 1. Клонируйте репозиторий:
 
 ```bash
-git clone https://github.com/yourusername/yandex-price-bot.git
+git clone https://github.com/S1l3ntium/yandex-price-bot.git
 cd yandex-price-bot
 ```
 
@@ -41,6 +41,7 @@ TOKEN=your_telegram_bot_token
 YA_COOKIE=your_yandex_cookie
 CHECK_INTERVAL=10
 PRICE_THRESHOLD=500
+ADMIN_IDS=your_id,your_id
 ```
 
 ## Запуск в Docker
