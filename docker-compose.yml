@@ -1,0 +1,15 @@
+version: '3.8'
+services:
+  yandex-price-bot:
+    build: .
+    container_name: yandex-price-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - prices_data:/app/prices_data
+      - ./prices.db:/app/prices_data/prices.db # Для миграции существующей базы, если есть
+    command: ["python", "bot.py"]
+    # network_mode: host # если нужен доступ к хост-сети
+volumes:
+  prices_data: 
