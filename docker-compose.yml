@@ -1,4 +1,3 @@
-version: '3.8'
 services:
   yandex-price-bot:
     build: .
@@ -7,9 +6,25 @@ services:
     env_file:
       - .env
     volumes:
-      - prices_data:/app/prices_data
-      - ./prices.db:/app/prices_data/prices.db # Для миграции существующей базы, если есть
-    command: ["python", "bot.py"]
-    # network_mode: host # если нужен доступ к хост-сети
+      - prices_data:/app/data
+      - backups_data:/app/backups
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
+    healthcheck:
+      test: ["CMD", "python", "scripts/healthcheck.py"]
+      interval: 1m
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    command: ["python", "main.py"]
+
 volumes:
-  prices_data: 
+  prices_data:
+    name: yandex_price_bot_db
+  backups_data:
+    name: yandex_price_bot_backups

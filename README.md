@@ -1,93 +1,144 @@
 # Yandex Price Bot
 
-Telegram бот для отслеживания цен товаров на Яндекс.Маркете.
+Telegram-бот для отслеживания цен на Яндекс.Маркете.
 
 ## Возможности
 
-- Отслеживание цен товаров на Яндекс.Маркете
-- Уведомления при изменении цены
-- История изменения цен
-- Индивидуальные пороги изменения цены для каждого товара
-- Управление списком отслеживаемых товаров
+- отслеживание цен товаров
+- уведомления об изменении цены
+- история цен
+- индивидуальный порог для товара
+- кнопочный интерфейс в Telegram
 
-## Установка
+## Переменные окружения
 
-1. Клонируйте репозиторий:
+Скопируйте шаблон и заполните значения:
 
 ```bash
-git clone https://github.com/yourusername/yandex-price-bot.git
-cd yandex-price-bot
+cp .env.example .env
 ```
 
-2. Создайте виртуальное окружение и активируйте его:
+Обязательные переменные:
+
+- `TOKEN` — токен Telegram-бота
+- `YA_COOKIE` — cookie для доступа к данным Яндекс.Маркета
+- `ADMIN_IDS` — список Telegram user id через запятую
+
+Опциональные:
+
+- `CHECK_INTERVAL` — интервал проверки в минутах, по умолчанию `30`
+- `PRICE_THRESHOLD` — порог по умолчанию, `500`
+- `DATABASE_PATH` — путь к SQLite БД, по умолчанию `data/prices.db`
+- `BACKUP_DIR` — директория backup-файлов, по умолчанию `backups` локально и `/app/backups` в Docker
+- `TIMEZONE` — часовой пояс для подписей времени на графиках, по умолчанию `Europe/Moscow`
+
+Пример:
+
+```env
+TOKEN=your_telegram_bot_token
+YA_COOKIE=your_yandex_cookie
+ADMIN_IDS=123456789
+CHECK_INTERVAL=10
+PRICE_THRESHOLD=500
+DATABASE_PATH=data/prices.db
+BACKUP_DIR=backups
+TIMEZONE=Europe/Moscow
+```
+
+## Локальный запуск
 
 ```bash
 python -m venv venv
-source venv/bin/activate  # для Linux/Mac
-# или
-venv\Scripts\activate  # для Windows
-```
-
-3. Установите зависимости:
-
-```bash
+source venv/bin/activate
 pip install -r requirements.txt
+python main.py
 ```
 
-4. Создайте файл `.env` в корневой директории проекта со следующим содержимым:
-
-```
-TOKEN=your_telegram_bot_token
-YA_COOKIE=your_yandex_cookie
-CHECK_INTERVAL=10
-PRICE_THRESHOLD=500
-```
-
-## Запуск в Docker
-
-1. Соберите и запустите контейнер с помощью docker-compose:
+Для разработки, тестов и lint:
 
 ```bash
-docker-compose up --build -d
+pip install -r requirements-dev.txt
 ```
 
-2. Остановить контейнер:
+## Docker
+
+База данных хранится в `/app/data/prices.db` в named volume `yandex_price_bot_db`.
+Backup-файлы сохраняются в named volume `yandex_price_bot_backups` (`/app/backups`).
+Контейнер запускается non-root, с read-only root filesystem, writable только volume и `/tmp`.
 
 ```bash
-docker-compose down
+docker compose up --build -d
 ```
 
-3. Для хранения базы данных используется volume `prices_data`. Если у вас уже есть файл `prices.db`, он будет скопирован в volume при первом запуске.
-
-4. Не забудьте создать и заполнить файл `.env` в корне проекта (см. раздел "Установка").
-
-## Использование
-
-1. Запустите бота:
+Остановка:
 
 ```bash
-python bot.py
+docker compose down
 ```
 
-2. В Telegram отправьте боту ссылку на товар с Яндекс.Маркета
+Создать консистентный backup SQLite через Online Backup API:
 
-### Команды
+```bash
+docker compose run --rm yandex-price-bot python scripts/backup_db.py
+```
 
-- `/start` - Начать работу с ботом
-- `/list` - Показать список отслеживаемых товаров
-- `/delete <id>` - Удалить товар из отслеживания
-- `/threshold <id> <value>` - Установить индивидуальный порог изменения цены
-- `/help` - Показать справку по командам
+Локально backup пишется в `backups/`:
 
-## Структура проекта
+```bash
+python scripts/backup_db.py
+```
 
-- `bot.py` - Основной файл бота
-- `config.py` - Конфигурация проекта
-- `database.py` - Работа с базой данных
-- `requirements.txt` - Зависимости проекта
-- `.env` - Файл с переменными окружения
-- `prices.db` - База данных SQLite
+## Тесты и lint
 
-## Лицензия
+Установка зависимостей:
 
-MIT
+```bash
+pip install -r requirements-dev.txt
+```
+
+Запуск тестов:
+
+```bash
+pytest
+```
+
+Проверка линтером:
+
+```bash
+ruff check .
+```
+
+Или через `make`:
+
+```bash
+make install-dev
+make test
+make lint
+make run
+```
+
+CI:
+- GitHub Actions запускает `ruff check .` и `pytest` на push/pull request.
+
+## Структура
+
+- `main.py` — основная точка входа
+- `bot.py` — совместимый entrypoint с запуском scheduler/runtime
+- `app/runtime.py` — композиция приложения
+- `app/handlers/` — Telegram handlers
+- `app/services/` — market/pricing/graphs/scheduler services
+- `app/keyboards.py` — клавиатуры
+- `app/core/` — конфигурация и логирование
+- `app/db/` — SQLite-слой
+- `config.py`, `database.py` — compatibility shim-импорты
+- `Dockerfile`, `docker-compose.yml` — контейнеризация
+
+Подробности:
+- `docs/architecture.md`
+- `docs/operations.md`
+
+## Ограничения
+
+- бот зависит от актуального `YA_COOKIE`
+- парсинг Яндекс.Маркета может ломаться при изменении верстки
+- для runtime/smoke-проверок должны быть установлены зависимости из `requirements.txt`
